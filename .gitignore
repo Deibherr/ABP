@@ -1,0 +1,33 @@
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos de editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Archivos temporales
+*.tmp
+*.log
+*.bak
+*.cache
+
+# Archivos de exportación (opcional - descomentar si no quieres versionar CSVs)
+# *.csv
+
+# Node modules (si en el futuro se agregan dependencias)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Archivos de build (si se agrega un proceso de build)
+dist/
+build/
+
