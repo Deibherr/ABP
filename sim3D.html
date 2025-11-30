@@ -114,42 +114,9 @@
       <div class="metrics" style="margin-top:6px">
         <div class="metric">θ = <span id="tangle">20</span>°</div>
         <div class="metric">a (teórica): <span id="a_theo">-</span> m/s²</div>
-      </div>
-
-      <div style="margin-top:8px">
-        <div class="small-muted" style="margin-bottom:4px;font-weight:600">📊 Velocidades Lineales v(t)</div>
-        <div class="metrics">
-          <div class="metric"><span style="color:#ff9f1c">●</span> Esfera: <span id="v_sphere">0.000</span> m/s</div>
-          <div class="metric"><span style="color:#2bd0a3">●</span> Cilindro: <span id="v_cyl">0.000</span> m/s</div>
-          <div class="metric"><span style="color:#a5b4fc">●</span> Aro: <span id="v_ring">0.000</span> m/s</div>
-        </div>
-      </div>
-
-      <div style="margin-top:8px">
-        <div class="small-muted" style="margin-bottom:4px;font-weight:600">📍 Posiciones s(t)</div>
-        <div class="metrics">
-          <div class="metric"><span style="color:#ff9f1c">●</span> Esfera: <span id="s_sphere">0.000</span> m</div>
-          <div class="metric"><span style="color:#2bd0a3">●</span> Cilindro: <span id="s_cyl">0.000</span> m</div>
-          <div class="metric"><span style="color:#a5b4fc">●</span> Aro: <span id="s_ring">0.000</span> m</div>
-        </div>
-      </div>
-
-      <div style="margin-top:8px">
-        <div class="small-muted" style="margin-bottom:4px;font-weight:600">🔄 Velocidades Angulares ω(t)</div>
-        <div class="metrics">
-          <div class="metric"><span style="color:#ff9f1c">●</span> Esfera: <span id="w_sphere">0.000</span> rad/s</div>
-          <div class="metric"><span style="color:#2bd0a3">●</span> Cilindro: <span id="w_cyl">0.000</span> rad/s</div>
-          <div class="metric"><span style="color:#a5b4fc">●</span> Aro: <span id="w_ring">0.000</span> rad/s</div>
-        </div>
-      </div>
-
-      <div style="margin-top:8px">
-        <div class="small-muted" style="margin-bottom:4px;font-weight:600">⏱️ Tiempos Finales</div>
-        <div class="metrics">
-          <div class="metric"><span style="color:#ff9f1c">●</span> Esfera: <span id="tEsfera">--</span> s</div>
-          <div class="metric"><span style="color:#2bd0a3">●</span> Cilindro: <span id="tCilindro">--</span> s</div>
-          <div class="metric"><span style="color:#a5b4fc">●</span> Aro: <span id="tAro">--</span> s</div>
-        </div>
+        <div class="metric">Esfera: v=<span id="v_sphere">0.000</span></div>
+        <div class="metric">Cilindro: v=<span id="v_cyl">0.000</span></div>
+        <div class="metric">Aro: v=<span id="v_ring">0.000</span></div>
       </div>
 
       <div style="margin-top:8px">
@@ -245,9 +212,6 @@
   let t_sim = 0;
   let lastMillis = 0;
   let s_end = 0;
-let tiempoFinalEsfera=null;
-let tiempoFinalCilindro=null;
-let tiempoFinalAro=null;
 
   // Canvas params
   let canvasW = 800, canvasH = 600;
@@ -303,9 +267,6 @@ let tiempoFinalAro=null;
     t_sim = 0; lastMillis = millis();
     running = false; paused = false;
     bodies.forEach(b => b.reset());
-    tiempoFinalEsfera = null;
-    tiempoFinalCilindro = null;
-    tiempoFinalAro = null;
     $('status').innerText = 'Detenido';
     log('Reset.');
     drawGraph();
@@ -315,9 +276,6 @@ let tiempoFinalAro=null;
   function startSim(){
     bodies.forEach(b => b.reset());
     t_sim = 0; lastMillis = millis();
-    tiempoFinalEsfera = null;
-    tiempoFinalCilindro = null;
-    tiempoFinalAro = null;
     running = true; paused = false;
     $('status').innerText = 'Corriendo';
     log('Iniciando...');
@@ -373,12 +331,7 @@ let tiempoFinalAro=null;
         b.s = s_end;
         b.finished = true;
         b.trail.push(s_end);
-        
-log(`${b.name} finalizó.`);
-if(b.type === "sphere" && tiempoFinalEsfera===null) tiempoFinalEsfera = t_sim;
-if(b.type === "cyl" && tiempoFinalCilindro===null) tiempoFinalCilindro = t_sim;
-if(b.type === "ring" && tiempoFinalAro===null) tiempoFinalAro = t_sim;
-
+        log(`${b.name} finalizó.`);
       }
     });
     
@@ -658,26 +611,9 @@ if(b.type === "ring" && tiempoFinalAro===null) tiempoFinalAro = t_sim;
     const theta = radians(appState.thetaDeg);
     $('a_theo').innerText = `${sphereBody.theoreticalAcceleration(theta).toFixed(2)} / ${cylBody.theoreticalAcceleration(theta).toFixed(2)} / ${ringBody.theoreticalAcceleration(theta).toFixed(2)}`;
     
-    // Velocidades lineales
     $('v_sphere').innerText = sphereBody.v.toFixed(3);
     $('v_cyl').innerText = cylBody.v.toFixed(3);
     $('v_ring').innerText = ringBody.v.toFixed(3);
-    
-    // Posiciones
-    $('s_sphere').innerText = sphereBody.s.toFixed(3);
-    $('s_cyl').innerText = cylBody.s.toFixed(3);
-    $('s_ring').innerText = ringBody.s.toFixed(3);
-    
-    // Velocidades angulares
-    $('w_sphere').innerText = sphereBody.w.toFixed(3);
-    $('w_cyl').innerText = cylBody.w.toFixed(3);
-    $('w_ring').innerText = ringBody.w.toFixed(3);
-    
-    // Tiempos finales
-    $('tEsfera').innerText = tiempoFinalEsfera?.toFixed(3) ?? "--";
-    $('tCilindro').innerText = tiempoFinalCilindro?.toFixed(3) ?? "--";
-    $('tAro').innerText = tiempoFinalAro?.toFixed(3) ?? "--";
-
   }
 
   /**
@@ -696,20 +632,18 @@ if(b.type === "ring" && tiempoFinalAro===null) tiempoFinalAro = t_sim;
     
     let maxT = 0.1; let maxV = 0.1;
     const allData = [];
-    const theta = radians(appState.thetaDeg);
     
     // Recolectar datos simulados actuales
     bodies.forEach(b => {
         if(b.samples.length>0) {
           allData.push({
             color: b.type=='sphere'?'#ff9f1c':(b.type=='cyl'?'#2bd0a3':'#a5b4fc'), 
-            data: b.samples,
-            body: b
+            data: b.samples
           });
         }
     });
 
-    // Encontrar máximos para escalado (simulados y teóricos)
+    // Encontrar máximos para escalado
     allData.forEach(s => {
         s.data.forEach(p => {
             if(p.t > maxT) maxT = p.t;
@@ -717,45 +651,10 @@ if(b.type === "ring" && tiempoFinalAro===null) tiempoFinalAro = t_sim;
         });
     });
     
-    // Calcular máximos teóricos también
-    bodies.forEach(b => {
-        const a_theo = b.theoreticalAcceleration(theta);
-        const t_final_theo = Math.sqrt(2 * s_end / a_theo);
-        const v_final_theo = a_theo * t_final_theo;
-        if(t_final_theo > maxT) maxT = t_final_theo;
-        if(v_final_theo > maxV) maxV = v_final_theo;
-    });
-    
     if(maxT < 0.1) maxT = 0.1;
     if(maxV < 0.1) maxV = 0.1;
 
-    // Dibujar curvas teóricas (líneas punteadas)
-    bodies.forEach(b => {
-        const a_theo = b.theoreticalAcceleration(theta);
-        const color = b.type=='sphere'?'#ff9f1c':(b.type=='cyl'?'#2bd0a3':'#a5b4fc');
-        
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.globalAlpha = 0.5;
-        
-        // v(t) = a*t (teórica)
-        const numPoints = 50;
-        for(let i = 0; i <= numPoints; i++) {
-            const t = (i / numPoints) * maxT;
-            const v_theo = a_theo * t;
-            const x = 30 + (t / maxT) * (w-40);
-            const y = (h-20) - (v_theo / maxV) * (h-30);
-            if(i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1.0;
-    });
-
-    // Dibujar curvas simuladas (líneas sólidas)
+    // Dibujar curvas
     allData.forEach(s => {
        if(s.data.length < 2) return;
        ctx.beginPath(); 
@@ -771,45 +670,17 @@ if(b.type === "ring" && tiempoFinalAro===null) tiempoFinalAro = t_sim;
        ctx.stroke();
     });
     
-    // Etiquetas de ejes
     ctx.fillStyle='#aaa'; ctx.font='10px Arial';
-    ctx.fillText('t (s)', w-25, h-8);
-    ctx.fillText('v (m/s)', 2, 10);
-    
-    // Leyenda
-    ctx.font='9px Arial';
-    ctx.fillStyle='#ff9f1c'; ctx.fillText('Esfera', 35, 15);
-    ctx.fillStyle='#2bd0a3'; ctx.fillText('Cilindro', 35, 27);
-    ctx.fillStyle='#a5b4fc'; ctx.fillText('Aro', 35, 39);
-    ctx.fillStyle='#888'; ctx.font='8px Arial';
-    ctx.fillText('(--- teórica)', 35, 51);
+    ctx.fillText(maxT.toFixed(1)+'s', w-25, h-8);
+    ctx.fillText(maxV.toFixed(1)+'m/s', 2, 10);
   }
 
   // --- EXPORT ---
   function exportSnapshot(){
-      let csv = "t,body,type,v,s,a,omega,friction\n";
-      const theta = radians(appState.thetaDeg);
-      
+      let csv = "t,body,v,s,a\n";
       bodies.forEach(b => {
-          // Obtener posición correspondiente para cada muestra
-          let trailIdx = 0;
-          b.samples.forEach((sample, i) => {
-              // Buscar la posición más cercana en el tiempo
-              let s_val = 0;
-              if(b.trail.length > 0) {
-                  // Interpolar o usar la última posición conocida
-                  const trailTime = Math.floor(i * (b.trail.length / b.samples.length));
-                  s_val = b.trail[Math.min(trailTime, b.trail.length - 1)] || 0;
-              }
-              
-              // Calcular velocidad angular teórica
-              const omega = sample.v / appState.R;
-              
-              // Calcular fricción teórica
-              const a_theo = b.theoreticalAcceleration(theta);
-              const friction = (appState.m * g * Math.sin(theta)) - (appState.m * a_theo);
-              
-              csv += `${sample.t.toFixed(4)},${b.name},${b.type},${sample.v.toFixed(4)},${s_val.toFixed(4)},${a_theo.toFixed(4)},${omega.toFixed(4)},${friction.toFixed(4)}\n`;
+          b.samples.forEach((s, i) => {
+              csv += `${s.t.toFixed(4)},${b.name},${s.v.toFixed(4)},${(b.trail[i]||0).toFixed(4)},${b.a.toFixed(4)}\n`;
           });
       });
       downloadCSV(csv, `snapshot_3d_${Date.now()}.csv`);
@@ -823,24 +694,10 @@ if(b.type === "ring" && tiempoFinalAro===null) tiempoFinalAro = t_sim;
 
   // Event Listeners
   window.addEventListener('load', () => {
-    $('angle').addEventListener('input', (e)=>{ 
-      appState.thetaDeg = parseFloat(e.target.value); 
-      updatePhysicsParams();
-      updateUI(); 
-    });
-    $('height').addEventListener('input', (e)=>{ 
-      appState.h = parseFloat(e.target.value); 
-      updatePhysicsParams();
-      updateUI(); 
-    });
-    $('radius').addEventListener('input', (e)=>{ 
-      appState.R = parseFloat(e.target.value); 
-      updateUI(); 
-    });
-    $('mass').addEventListener('input', (e)=>{ 
-      appState.m = parseFloat(e.target.value); 
-      updateUI(); 
-    });
+    $('angle').addEventListener('input', (e)=>{ appState.thetaDeg = parseFloat(e.target.value); updateUI(); });
+    $('height').addEventListener('input', (e)=>{ appState.h = parseFloat(e.target.value); updateUI(); });
+    $('radius').addEventListener('input', (e)=>{ appState.R = parseFloat(e.target.value); updateUI(); });
+    $('mass').addEventListener('input', (e)=>{ appState.m = parseFloat(e.target.value); updateUI(); });
     
     $('start').addEventListener('click', startSim);
     $('pause').addEventListener('click', () => { paused = !paused; $('pause').innerText = paused ? 'Reanudar' : 'Pausar'; });
