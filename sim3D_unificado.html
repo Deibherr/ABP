@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Competencia de Rodadura 3D (Unificado)</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#071226; --panel:#0b1220; --muted:#9aa8bd; --accent:#38bdf8;
+      --card:#0b1220; --white: #e6eef8;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071226 0%, #061827 100%);color:var(--white)}
+    .app{display:grid;grid-template-columns:1fr 420px;gap:18px;padding:18px;height:100vh;align-items:stretch}
+    
+    /* stage (left) */
+    .stage{
+      background:linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.4));
+      border-radius:10px;padding:0;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative;
+    }
+    #sketch-holder{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden}
+    
+    /* overlay UI on stage */
+    .stage-overlay{
+      position:absolute; top:10px; left:10px; right:10px; pointer-events:none;
+      display:flex; justify-content:space-between; z-index:10;
+    }
+    .stage-overlay .badge{
+      background:rgba(0,0,0,0.6); padding:6px 12px; border-radius:20px; 
+      backdrop-filter:blur(4px); font-size:13px; display:flex; align-items:center; gap:8px; pointer-events:auto;
+    }
+
+    /* right panel */
+    .controls{background:rgba(6,10,15,0.62);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto;max-height:100%}
+    label{font-size:13px;color:var(--muted);min-width:110px}
+    .row{display:flex;gap:8px;align-items:center}
+    input[type=range]{width:100%}
+    .buttons{display:flex;gap:8px;flex-wrap:wrap}
+    button{background:var(--accent);border:none;padding:8px 10px;border-radius:8px;color:#042233;font-weight:600;cursor:pointer}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    button:hover{opacity:0.9}
+    
+    .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+    .metric{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;font-size:13px}
+    .small{font-size:12px;color:var(--muted)}
+    
+    .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+    .dot.sphere{background:#ff9f1c}
+    .dot.cyl{background:#2bd0a3}
+    .dot.ring{background:#a5b4fc}
+
+    .log{background:rgba(255,255,255,0.02);border-radius:8px;padding:8px;max-height:160px;overflow:auto;font-size:13px}
+    canvas{border-radius:8px;display:block}
+    .title{font-weight:700;color:#fff;margin-bottom:6px}
+    .graph-wrap{background:transparent;padding:8px;border-radius:8px}
+    .history{background:rgba(255,255,255,0.02);border-radius:8px;padding:8px;max-height:140px;overflow:auto}
+    .footer-note{font-size:12px;color:var(--muted);margin-top:6px}
+    .small-muted{font-size:12px;color:var(--muted)}
+    .small-input{width:70px}
+    .body-params{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .test-result{padding:6px;border-radius:6px;background:rgba(0,0,0,0.3);font-weight:600}
+    
+    /* Tabla de resultados */
+    .results-table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px}
+    .results-table th{background:rgba(255,255,255,0.05);padding:6px 8px;text-align:center;font-weight:600;border:1px solid rgba(255,255,255,0.1)}
+    .results-table td{padding:6px 8px;text-align:center;border:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.02)}
+    .results-table td:first-child{text-align:left;font-weight:500;color:var(--muted);background:rgba(255,255,255,0.03)}
+    .results-table-wrapper{background:rgba(255,255,255,0.02);border-radius:8px;padding:8px;margin-top:6px}
+
+    /* responsive */
+    @media (max-width:1000px){
+      .app{grid-template-columns:1fr;grid-auto-rows:auto}
+      .controls{height:auto}
+      .stage{height:400px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="stage" id="stage">
+      <div class="stage-overlay">
+        <div class="badge">
+          <div class="dot sphere"></div> Esfera
+          <div class="dot cyl" style="margin-left:4px"></div> Cilindro
+          <div class="dot ring" style="margin-left:4px"></div> Aro
+        </div>
+        <div class="badge">
+          <span class="small-muted" style="color:#fff">Click y arrastra para rotar cámara</span>
+        </div>
+      </div>
+
+      <div id="sketch-holder"></div>
+
+      <div style="position:absolute; bottom:10px; left:10px; right:10px; display:flex; justify-content:space-between; pointer-events:none">
+        <div class="badge">t = <span id="t">0.000</span> s</div>
+        <div class="badge">Estado: <span id="status">Detenido</span></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="title">Controles Física 3D</div>
+
+      <div class="row"><label>Ángulo θ (°)</label><input id="angle" type="range" min="1" max="45" value="20"><div class="small" id="angle-val">20°</div></div>
+      <div class="row"><label>Altura h (m)</label><input id="height" type="range" min="0.2" max="3.0" step="0.01" value="1.2"><div class="small" id="height-val">1.20 m</div></div>
+
+      <!-- Global defaults (se usan si no se setean parámetros por cuerpo) -->
+      <div class="row"><label>Radio global R (m)</label><input id="radius" type="range" min="0.02" max="0.2" step="0.005" value="0.1"><div class="small" id="radius-val">0.100 m</div></div>
+      <div class="row"><label>Masa global m (kg)</label><input id="mass" type="range" min="0.1" max="5.0" step="0.1" value="1.0"><div class="small" id="mass-val">1.0 kg</div></div>
+
+      <div class="row buttons">
+        <button id="start">Iniciar</button>
+        <button id="pause" class="secondary">Pausar</button>
+        <button id="reset" class="secondary">Reset</button>
+        <button id="viewReset" class="secondary" style="font-size:11px">Cam Reset</button>
+        <button id="exportSnapshot" class="secondary" style="font-size:11px">Snapshot CSV</button>
+        <button id="runTest" class="secondary" style="font-size:11px">Run Test</button>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;justify-content:space-between; margin-top:5px">
+        <div style="display:flex;gap:8px;align-items:center"><input id="showForces" type="checkbox"><div class="small-muted">Vectores Fuerza</div></div>
+        <div style="display:flex;gap:8px;align-items:center"><input id="showTrail" type="checkbox" checked><div class="small-muted">Rastro</div></div>
+      </div>
+
+      <div style="margin-top:8px">
+        <div class="small-muted" style="margin-bottom:6px;font-weight:600">Mostrar Objetos</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="showSphere" type="checkbox" checked>
+            <div class="dot sphere" style="display:inline-block"></div>
+            <div class="small-muted">Esfera</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="showCyl" type="checkbox" checked>
+            <div class="dot cyl" style="display:inline-block"></div>
+            <div class="small-muted">Cilindro</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="showRing" type="checkbox" checked>
+            <div class="dot ring" style="display:inline-block"></div>
+            <div class="small-muted">Aro</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics" style="margin-top:6px">
+        <div class="metric">θ = <span id="tangle">20</span>°</div>
+        <div class="metric">a (teórica): <span id="a_theo">-</span> m/s²</div>
+      </div>
+
+      <div class="results-table-wrapper">
+        <div class="small-muted" style="margin-bottom:6px;font-weight:600">Resultados Numéricos</div>
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th id="th_sphere"><div class="dot sphere" style="display:inline-block;margin-right:4px"></div>Esfera</th>
+              <th id="th_cyl"><div class="dot cyl" style="display:inline-block;margin-right:4px"></div>Cilindro</th>
+              <th id="th_ring"><div class="dot ring" style="display:inline-block;margin-right:4px"></div>Aro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Velocidad v (m/s)</td>
+              <td id="v_sphere" class="col-sphere">0.000</td>
+              <td id="v_cyl" class="col-cyl">0.000</td>
+              <td id="v_ring" class="col-ring">0.000</td>
+            </tr>
+            <tr>
+              <td>Velocidad angular ω (rad/s)</td>
+              <td id="w_sphere" class="col-sphere">0.000</td>
+              <td id="w_cyl" class="col-cyl">0.000</td>
+              <td id="w_ring" class="col-ring">0.000</td>
+            </tr>
+            <tr>
+              <td>Aceleración teórica a (m/s²)</td>
+              <td id="a_sphere" class="col-sphere">-</td>
+              <td id="a_cyl" class="col-cyl">-</td>
+              <td id="a_ring" class="col-ring">-</td>
+            </tr>
+            <tr>
+              <td>Posición s (m)</td>
+              <td id="s_sphere" class="col-sphere">0.000</td>
+              <td id="s_cyl" class="col-cyl">0.000</td>
+              <td id="s_ring" class="col-ring">0.000</td>
+            </tr>
+            <tr>
+              <td>Tiempo final t (s)</td>
+              <td id="tEsfera" class="col-sphere">--</td>
+              <td id="tCilindro" class="col-cyl">--</td>
+              <td id="tAro" class="col-ring">--</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <details style="margin-top:8px">
+        <summary class="small-muted">Parámetros por cuerpo (expandir)</summary>
+        <div style="margin-top:8px" class="body-params">
+          <!-- Esfera -->
+          <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;">
+            <div style="font-weight:700;margin-bottom:4px">Esfera</div>
+            m: <input id="m_sphere" class="small-input" type="number" step="0.1" min="0.01" value="1.0"> kg<br>
+            R: <input id="R_sphere" class="small-input" type="number" step="0.005" min="0.01" value="0.1"> m
+          </div>
+          <!-- Cilindro -->
+          <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;">
+            <div style="font-weight:700;margin-bottom:4px">Cilindro</div>
+            m: <input id="m_cyl" class="small-input" type="number" step="0.1" min="0.01" value="1.0"> kg<br>
+            R: <input id="R_cyl" class="small-input" type="number" step="0.005" min="0.01" value="0.1"> m
+          </div>
+          <!-- Aro -->
+          <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;">
+            <div style="font-weight:700;margin-bottom:4px">Aro</div>
+            m: <input id="m_ring" class="small-input" type="number" step="0.1" min="0.01" value="1.0"> kg<br>
+            R: <input id="R_ring" class="small-input" type="number" step="0.005" min="0.01" value="0.1"> m
+          </div>
+        </div>
+        <div class="small-muted" style="margin-top:6px">Si un campo queda vacío, se usa el valor global.</div>
+      </details>
+
+      <div style="margin-top:8px">
+        <div class="small-muted" style="margin-bottom:6px">Gráfica v(t) (en vivo)</div>
+        <div class="graph-wrap">
+          <canvas id="graph" width="360" height="150" style="width:100%;background:rgba(255,255,255,0.01);border-radius:6px"></canvas>
+        </div>
+      </div>
+
+      <div style="margin-top:8px" class="log" id="log"></div>
+
+      <div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.02);border-radius:8px">
+        <div class="small-muted" style="margin-bottom:6px;font-weight:600">📚 Ecuaciones Físicas</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          <div style="margin-bottom:4px"><strong>Aceleración:</strong> a = (g·sin(θ)) / (1 + k)</div>
+          <div style="margin-bottom:4px"><strong>Factor k:</strong> Esfera=2/5, Cilindro=1/2, Aro=1</div>
+          <div style="margin-bottom:4px"><strong>Velocidad:</strong> v(t) = a·t (cuando a constante)</div>
+          <div style="margin-bottom:4px"><strong>Posición:</strong> s(t) = ½·a·t² (cuando inicia en 0)</div>
+          <div style="margin-bottom:4px"><strong>Fricción:</strong> f = m g sin(θ) - m a</div>
+          <div><strong>Condición:</strong> |f| ≤ μ·N (rodadura sin deslizamiento)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+
+  <script>
+  // -----------------------------
+  // Parámetros y estado global
+  // -----------------------------
+  const g = 9.80665; // m/s^2
+  let MU_STATIC = 1.0; // coef. fricción estática (editable si se desea)
+  const appState = { thetaDeg: 20, h: 1.2, R: 0.1, m: 1.0 };
+  const SCALE = 150; // pixeles por metro (visual)
+  const MAX_S = 200.0; // Límite máximo de longitud de rampa (m)
+
+  // -----------------------------
+  // Clase RollingBody con m y R por cuerpo
+  // -----------------------------
+  class RollingBody {
+    constructor(name, type, zOffset, m = 1.0, R = 0.1){
+      this.name = name; this.type = type; this.zOffset = zOffset;
+      this.m = m; this.R = R;
+      this.reset();
+    }
+    reset(){
+      this.s = 0;
+      this.v = 0;
+      this.a = 0;
+      this.w = 0;
+      this.finished = false;
+      this.samples = [];
+      this.trail = [];
+      this.friction = 0;
+      this.frictionValid = true;
+      this._finalSampleSaved = false;
+    }
+    k(){
+      if(this.type === 'sphere') return 2/5;
+      if(this.type === 'cyl') return 1/2;
+      return 1.0;
+    }
+    theoreticalAcceleration(thetaRad){
+      // a = (g sin θ) / (1 + I/(mR^2)) ; here k = I/(mR^2)
+      return (g * Math.sin(thetaRad)) / (1 + this.k());
+    }
+  }
+
+  // crear cuerpos iniciales con valores por defecto (serán actualizados por UI)
+  const sphereBody = new RollingBody('Esfera', 'sphere', -60, appState.m, appState.R);
+  const cylBody = new RollingBody('Cilindro', 'cyl', 0, appState.m, appState.R);
+  const ringBody = new RollingBody('Aro', 'ring', 60, appState.m, appState.R);
+  const bodies = [sphereBody, cylBody, ringBody];
+
+  // estado de la simulación
+  let running = false, paused = false;
+  let t_sim = 0, lastMillis = 0;
+  let s_end = 0;
+  let tiempoFinalEsfera = null;
+  let tiempoFinalCilindro = null;
+  let tiempoFinalAro = null;
+
+  // canvas/graph
+  let canvasW = 800, canvasH = 600;
+  const graph = { el: null, ctx: null };
+
+  // helpers DOM
+  function $(id){ return document.getElementById(id); }
+  function radians(d){ return d * Math.PI / 180; }
+  function log(msg){ const el = $('log'); el.innerHTML = `<div>[${t_sim.toFixed(2)}] ${msg}</div>` + el.innerHTML; }
+
+  // -----------------------------
+  // Setup p5
+  // -----------------------------
+  function setupSketch(){
+    const holder = document.getElementById('sketch-holder');
+    const rect = holder.getBoundingClientRect();
+    canvasW = rect.width; canvasH = rect.height;
+    const c = createCanvas(canvasW, canvasH, WEBGL);
+    c.parent(holder);
+    camera(0, -300, 600, 0, 0, 0, 0, 1, 0);
+    updatePhysicsParams();
+    graph.el = document.getElementById('graph');
+    graph.ctx = graph.el.getContext('2d');
+    updateUI();
+  }
+  function setup(){ setupSketch(); }
+
+  window.addEventListener('resize', () => {
+    if(window._rsz) clearTimeout(window._rsz);
+    window._rsz = setTimeout(() => {
+      const holder = $('sketch-holder');
+      const rect = holder.getBoundingClientRect();
+      resizeCanvas(rect.width, rect.height);
+    }, 150);
+  });
+
+  // -----------------------------
+  // Física: actualización parámetros
+  // -----------------------------
+  function updatePhysicsParams(){
+    const theta = radians(appState.thetaDeg);
+    const sinT = Math.sin(theta);
+    if(sinT <= 1e-6){
+      s_end = 0;
+    } else {
+      s_end = appState.h / sinT;
+      if(s_end > MAX_S){
+        s_end = MAX_S;
+        log(`θ muy pequeño → rampa limitada a ${MAX_S} m para visualización`);
+      }
+    }
+  }
+
+  // Función para actualizar el texto del botón de pausar
+  function updatePauseButton(){
+    if(!running){
+      $('pause').innerText = 'Pausar';
+    } else {
+      $('pause').innerText = paused ? 'Reanudar' : 'Pausar';
+    }
+  }
+
+  // reset y start
+  function resetSim(){
+    t_sim = 0; lastMillis = millis();
+    running = false; paused = false;
+    tiempoFinalEsfera = null;
+    tiempoFinalCilindro = null;
+    tiempoFinalAro = null;
+    bodies.forEach(b => {
+      b.reset();
+      applyPerBodyParamsFromUI(b);
+    });
+    $('status').innerText = 'Detenido';
+    log('Reset.');
+    updatePauseButton();
+    drawGraph();
+    updateUI();
+  }
+  function startSim(){
+    tiempoFinalEsfera = null;
+    tiempoFinalCilindro = null;
+    tiempoFinalAro = null;
+    bodies.forEach(b => {
+      b.reset();
+      applyPerBodyParamsFromUI(b);
+    });
+    t_sim = 0; lastMillis = millis();
+    running = true; paused = false;
+    $('status').innerText = 'Corriendo';
+    updatePauseButton();
+    log('Iniciando...');
+  }
+
+  // Aplica valores desde inputs por-cuerpo; si vacíos usa appState global
+  function applyPerBodyParamsFromUI(b){
+    try {
+      const idm = b.type === 'sphere' ? 'm_sphere' : (b.type === 'cyl' ? 'm_cyl' : 'm_ring');
+      const idR = b.type === 'sphere' ? 'R_sphere' : (b.type === 'cyl' ? 'R_cyl' : 'R_ring');
+      const mVal = parseFloat($(idm).value);
+      const RVal = parseFloat($(idR).value);
+      b.m = !isNaN(mVal) && mVal > 0 ? mVal : appState.m;
+      b.R = !isNaN(RVal) && RVal > 0 ? RVal : appState.R;
+    } catch(e) {
+      b.m = appState.m; b.R = appState.R;
+    }
+  }
+
+  /**
+   * Integración numérica de las ecuaciones de movimiento
+   * Método: Euler semi-implícito (symplectic Euler):
+   *   v(t+dt) = v(t) + a(t)·dt
+   *   s(t+dt) = s(t) + v(t+dt)·dt
+   * Ventaja: mejor estabilidad numérica que Euler explícito en este sistema.
+   */
+  function stepPhysics(dt){
+    const theta = radians(appState.thetaDeg);
+    updatePhysicsParams();
+
+    bodies.forEach(b => {
+      // si ya terminó, guardar un solo sample final (si no se guardó) y salir
+      if(b.finished){
+        if(!b._finalSampleSaved){
+          b.samples.push({ t: t_sim, v: b.v, s: b.s, a: b.a });
+          b._finalSampleSaved = true;
+        }
+        return;
+      }
+
+      // actualizar parámetros por cuerpo (en caso de que cambiemos inputs en vuelo)
+      applyPerBodyParamsFromUI(b);
+
+      // aceleración teórica (depende sólo de la forma, no de m o R explícitamente)
+      const a = b.theoreticalAcceleration(theta);
+      b.a = a;
+
+      // integración semi-implícita
+      b.v += a * dt;
+      b.s += b.v * dt;
+      b.w = b.v / b.R;
+
+      // fricción necesaria (usa la masa del cuerpo)
+      b.friction = (b.m * g * Math.sin(theta)) - (b.m * a);
+      const N = b.m * g * Math.cos(theta);
+      const maxFriction = MU_STATIC * N;
+      b.frictionValid = Math.abs(b.friction) <= maxFriction;
+
+      if(!b.frictionValid){
+        log(`⚠️ ${b.name}: Fricción insuficiente (|f|=${Math.abs(b.friction).toFixed(3)} N) μN=${maxFriction.toFixed(3)} N`);
+      }
+
+      // Guardar muestra completa (t, v, s, a)
+      b.samples.push({ t: t_sim, v: b.v, s: b.s, a: b.a });
+
+      // trail (cada 2 cm)
+      if(b.trail.length === 0 || b.s - b.trail[b.trail.length - 1] > 0.02){
+        b.trail.push(b.s);
+      }
+
+      if(b.s >= s_end && s_end > 0){
+        b.s = s_end;
+        b.finished = true;
+        b.trail.push(s_end);
+        log(`${b.name} finalizó.`);
+        
+        // Guardar tiempo final
+        if(b.type === "sphere" && tiempoFinalEsfera === null) tiempoFinalEsfera = t_sim;
+        if(b.type === "cyl" && tiempoFinalCilindro === null) tiempoFinalCilindro = t_sim;
+        if(b.type === "ring" && tiempoFinalAro === null) tiempoFinalAro = t_sim;
+      }
+    });
+
+    if(bodies.every(b => b.finished)){
+      running = false;
+      paused = false;
+      $('status').innerText = 'Finalizado';
+      updatePauseButton();
+    }
+  }
+
+  // -----------------------------
+  // Dibujado p5.js
+  // -----------------------------
+  function draw(){
+    background(10,20,35);
+    ambientLight(100); pointLight(255,255,255,100,-400,300); directionalLight(200,200,200,1,1,-1);
+    orbitControl(1,1,0.1);
+
+    if(running && !paused){
+      const now = millis();
+      let dt = (now - lastMillis)/1000.0;
+      if(dt > 0.1) dt = 0.1;
+      stepPhysics(dt);
+      lastMillis = now;
+      t_sim += dt;
+    } else {
+      lastMillis = millis();
+    }
+
+    const rampLen = s_end * SCALE;
+    const rampWidth = 240;
+    const rampThickness = 10;
+    const theta = radians(appState.thetaDeg);
+
+    push();
+    translate(-rampLen * Math.cos(theta)/2 + 100, 100, 0);
+
+    // Rampa
+    push();
+    rotateZ(theta);
+    fill(30,40,50); noStroke();
+    translate(rampLen/2, rampThickness/2, 0);
+    box(rampLen, rampThickness, rampWidth);
+
+    translate(0, -rampThickness/2 - 1, 0);
+    stroke(255,255,255,20); strokeWeight(1);
+    line(-rampLen/2, 0, -30, rampLen/2, 0, -30);
+    line(-rampLen/2, 0, 30, rampLen/2, 0, 30);
+    pop();
+
+    // Cuerpos
+    push();
+    rotateZ(theta);
+
+    const showForces = $('showForces').checked;
+    const showTrail = $('showTrail').checked;
+    const showSphere = $('showSphere').checked;
+    const showCyl = $('showCyl').checked;
+    const showRing = $('showRing').checked;
+
+    bodies.forEach(b => {
+      // Verificar si este objeto debe mostrarse
+      const shouldShow = (b.type === 'sphere' && showSphere) || 
+                         (b.type === 'cyl' && showCyl) || 
+                         (b.type === 'ring' && showRing);
+      
+      if(!shouldShow) return; // Saltar este objeto si no debe mostrarse
+      
+      const rVis = b.R * SCALE;
+      const distVis = b.s * SCALE;
+
+      push();
+      translate(distVis, -rVis, b.zOffset);
+
+      push();
+      noStroke(); specularMaterial(255); shininess(20);
+
+      // rotación visual: usar angulo s/R (radianes)
+      if(b.type === 'sphere'){
+        rotateZ(b.s / b.R);
+        fill(255,159,28); sphere(rVis);
+        stroke(0,0,0,50); strokeWeight(2); noFill(); ellipse(0,0, rVis*2.1, rVis*2.1);
+      } else if(b.type === 'cyl'){
+        rotateZ(b.s / b.R);
+        fill(43,208,163); rotateX(HALF_PI); cylinder(rVis, 40);
+        push(); translate(0,21,0); fill(30,160,120); circle(0,0,rVis*1.8); pop();
+        push(); translate(0,-21,0); fill(30,160,120); circle(0,0,rVis*1.8); pop();
+      } else if(b.type === 'ring'){
+        rotateZ(b.s / b.R);
+        fill(165,180,252); torus(rVis - (rVis*0.15), rVis*0.3);
+        stroke(100,100,255); strokeWeight(2); line(0,0,0, rVis,0,0); line(0,0,0, 0,rVis,0);
+      }
+      pop();
+
+      // vectores de fuerza
+      if(showForces && !b.finished){
+        const mg_sin = b.m * g * Math.sin(theta);
+        const f = b.friction;
+        const fScale = 8;
+
+        // mg sin(theta)
+        push(); translate(0,0,0); drawArrow3D(mg_sin * fScale, color(70,130,180), 0, 0); pop();
+
+        // fricción (desde contacto)
+        push(); translate(0, rVis, 0); drawArrow3D(f * fScale, color(220,80,80), Math.PI, 0); pop();
+      }
+
+      pop();
+
+      // rastro
+      if(showTrail && b.trail.length > 1){
+        noFill(); stroke(255,255,255,50); strokeWeight(2);
+        beginShape();
+        for(let i=0;i<b.trail.length;i++){
+          vertex(b.trail[i] * SCALE, -2, b.zOffset);
+        }
+        vertex(distVis, -2, b.zOffset);
+        endShape();
+      }
+    });
+
+    pop();
+    pop();
+
+    updateUI();
+    drawGraph();
+  }
+
+  // drawArrow3D usando yOffset correctamente
+  function drawArrow3D(len, col, rotZ = 0, yOffset = 0){
+    if(Math.abs(len) < 0.5) return;
+    push();
+    translate(0, yOffset, 0);
+    rotateZ(rotZ);
+    // cylinder drawn along Y in p5; align along +X by rotating -PI/2
+    rotateZ(-HALF_PI);
+    // body (use abs len)
+    const L = Math.abs(len);
+    noStroke(); fill(col);
+    push();
+    translate(0, L/2, 0);
+    cylinder(2, L);
+    translate(0, L/2 + 6, 0);
+    cone(6, 12);
+    pop();
+    pop();
+  }
+
+  // -----------------------------
+  // UI, graph y export
+  // -----------------------------
+  function updateUI(){
+    if(!sphereBody) return;
+    $('t').innerText = t_sim.toFixed(3);
+    $('angle-val').innerText = appState.thetaDeg + '°';
+    $('height-val').innerText = appState.h.toFixed(2) + ' m';
+    $('radius-val').innerText = appState.R.toFixed(3) + ' m';
+    $('mass-val').innerText = appState.m.toFixed(1) + ' kg';
+    $('tangle').innerText = appState.thetaDeg;
+
+    const theta = radians(appState.thetaDeg);
+    // Calcular aceleraciones teóricas por cuerpo
+    const a_s = sphereBody.theoreticalAcceleration(theta);
+    const a_c = cylBody.theoreticalAcceleration(theta);
+    const a_r = ringBody.theoreticalAcceleration(theta);
+    $('a_theo').innerText = `${a_s.toFixed(2)} / ${a_c.toFixed(2)} / ${a_r.toFixed(2)}`;
+
+    // Llenar tabla de resultados
+    // Velocidades
+    $('v_sphere').innerText = sphereBody.v.toFixed(3);
+    $('v_cyl').innerText = cylBody.v.toFixed(3);
+    $('v_ring').innerText = ringBody.v.toFixed(3);
+
+    // Velocidades angulares
+    $('w_sphere').innerText = sphereBody.w.toFixed(3);
+    $('w_cyl').innerText = cylBody.w.toFixed(3);
+    $('w_ring').innerText = ringBody.w.toFixed(3);
+
+    // Aceleraciones teóricas
+    $('a_sphere').innerText = a_s.toFixed(3);
+    $('a_cyl').innerText = a_c.toFixed(3);
+    $('a_ring').innerText = a_r.toFixed(3);
+
+    // Posiciones
+    $('s_sphere').innerText = sphereBody.s.toFixed(3);
+    $('s_cyl').innerText = cylBody.s.toFixed(3);
+    $('s_ring').innerText = ringBody.s.toFixed(3);
+
+    // Tiempos finales
+    $('tEsfera').innerText = tiempoFinalEsfera?.toFixed(3) ?? "--";
+    $('tCilindro').innerText = tiempoFinalCilindro?.toFixed(3) ?? "--";
+    $('tAro').innerText = tiempoFinalAro?.toFixed(3) ?? "--";
+
+    // Ocultar/mostrar columnas según checkboxes
+    updateTableVisibility();
+  }
+
+  // Función para ocultar/mostrar columnas de la tabla según checkboxes
+  function updateTableVisibility(){
+    const showSphere = $('showSphere').checked;
+    const showCyl = $('showCyl').checked;
+    const showRing = $('showRing').checked;
+
+    // Ocultar/mostrar encabezados
+    $('th_sphere').style.display = showSphere ? '' : 'none';
+    $('th_cyl').style.display = showCyl ? '' : 'none';
+    $('th_ring').style.display = showRing ? '' : 'none';
+
+    // Ocultar/mostrar celdas de datos
+    document.querySelectorAll('.col-sphere').forEach(el => {
+      el.style.display = showSphere ? '' : 'none';
+    });
+    document.querySelectorAll('.col-cyl').forEach(el => {
+      el.style.display = showCyl ? '' : 'none';
+    });
+    document.querySelectorAll('.col-ring').forEach(el => {
+      el.style.display = showRing ? '' : 'none';
+    });
+  }
+
+  function drawGraph(){
+    if(!graph.ctx) return;
+    const ctx = graph.ctx;
+    const w = graph.el.width; const h = graph.el.height;
+    ctx.clearRect(0,0,w,h);
+
+    // ejes
+    ctx.strokeStyle = '#223'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(30, h-20); ctx.lineTo(w, h-20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(30, h-20); ctx.lineTo(30, 0); ctx.stroke();
+
+    let maxT = 0.1; let maxV = 0.1;
+    const allData = [];
+
+    bodies.forEach(b => {
+      if(b.samples.length > 0){
+        allData.push({
+          color: b.type=='sphere' ? '#ff9f1c' : (b.type=='cyl' ? '#2bd0a3' : '#a5b4fc'),
+          data: b.samples
+        });
+      }
+    });
+
+    allData.forEach(s => {
+      s.data.forEach(p => {
+        if(p.t > maxT) maxT = p.t;
+        if(p.v > maxV) maxV = p.v;
+      });
+    });
+
+    if(maxT < 0.1) maxT = 0.1;
+    if(maxV < 0.1) maxV = 0.1;
+
+    allData.forEach(s => {
+      if(s.data.length < 2) return;
+      ctx.beginPath(); ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.setLineDash([]);
+      s.data.forEach((p,i) => {
+        const x = 30 + (p.t / maxT) * (w - 40);
+        const y = (h - 20) - (p.v / maxV) * (h - 30);
+        if(i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+    });
+
+    ctx.fillStyle='#aaa'; ctx.font='10px Arial';
+    ctx.fillText(maxT.toFixed(1)+'s', w-25, h-8);
+    ctx.fillText(maxV.toFixed(1)+'m/s', 2, 10);
+  }
+
+  function exportSnapshot(){
+    let csv = "t,body,v,s,a\n";
+    bodies.forEach(b => {
+      b.samples.forEach(sample => {
+        // proteger si sample.s es undefined
+        const sVal = typeof sample.s === 'number' ? sample.s : (b.s || 0);
+        const aVal = typeof sample.a === 'number' ? sample.a : b.a || 0;
+        csv += `${sample.t.toFixed(4)},${b.name},${sample.v.toFixed(4)},${sVal.toFixed(4)},${aVal.toFixed(6)}\n`;
+      });
+    });
+    downloadCSV(csv, `snapshot_3d_${Date.now()}.csv`);
+  }
+  function downloadCSV(content, filename){
+    const blob = new Blob([content], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  }
+
+  // -----------------------------
+  // Test harness: compara tiempos simulados vs teoría
+  // -----------------------------
+  function computeTheoretical(thetaDeg, h){
+    const theta = thetaDeg * Math.PI / 180;
+    const sinT = Math.sin(theta);
+    const s = sinT > 1e-6 ? h / sinT : 0;
+    const factors = { Esfera: 2/5, Cilindro: 1/2, Aro: 1 };
+    const res = {};
+    Object.entries(factors).forEach(([name,k]) => {
+      const a = (g * Math.sin(theta)) / (1 + k);
+      const t = (s > 0 && a > 0) ? Math.sqrt(2 * s / a) : Infinity;
+      const v = (s > 0 && a > 0) ? Math.sqrt(2 * a * s) : 0;
+      res[name] = { a, t, v, s };
+    });
+    return res;
+  }
+
+  // Ejecuta la comparación cuando la simulación terminó o en cualquier momento
+  function runTest(tolerancePercent = 5){
+    const theo = computeTheoretical(appState.thetaDeg, appState.h);
+    // extraer tiempos simulados: último sample con s == s_end (o el último sample)
+    const results = [];
+    bodies.forEach(b => {
+      const lastSample = b.samples.length > 0 ? b.samples[b.samples.length - 1] : null;
+      let tSim = null;
+      if(b.finished){
+        // buscar sample cuyo s esté muy cerca de s_end sin mutar el arreglo
+        const samplesReversed = Array.from(b.samples).reverse();
+        const near = samplesReversed.find(s => typeof s.s === 'number' && Math.abs(s.s - (s_end || appState.h / Math.sin(radians(appState.thetaDeg)))) < 1e-3);
+        tSim = near ? near.t : (lastSample ? lastSample.t : Infinity);
+      } else {
+        tSim = lastSample ? lastSample.t : Infinity;
+      }
+      const tTheo = theo[b.name].t;
+      const relErr = (isFinite(tSim) && isFinite(tTheo)) ? Math.abs(tSim - tTheo) / tTheo * 100 : Infinity;
+      const pass = isFinite(relErr) && relErr <= tolerancePercent;
+      results.push({ name: b.name, tSim, tTheo, relErr, pass });
+    });
+
+    // mostrar en log y UI
+    results.forEach(r => {
+      if(!isFinite(r.tSim)) log(`Test ${r.name}: NO terminó (tSim=${r.tSim}) — tTheo=${r.tTheo.toFixed(3)} s`);
+      else log(`Test ${r.name}: tSim=${r.tSim.toFixed(3)} s, tTheo=${r.tTheo.toFixed(3)} s, err=${r.relErr.toFixed(2)}% → ${r.pass ? 'PASS' : 'FAIL'}`);
+    });
+
+    // resultado global
+    const allPass = results.every(r => r.pass);
+    const resEl = document.createElement('div');
+    resEl.className = 'test-result';
+    resEl.innerText = allPass ? `TEST OK (tolerancia ${tolerancePercent}%)` : `TESTS FALLARON (ver log)`;
+    $('log').prepend(resEl);
+  }
+
+  // -----------------------------
+  // Event listeners
+  // -----------------------------
+  window.addEventListener('load', () => {
+    // sliders globales
+    $('angle').addEventListener('input', (e) => { appState.thetaDeg = parseFloat(e.target.value); updateUI(); updatePhysicsParams(); });
+    $('height').addEventListener('input', (e) => { appState.h = parseFloat(e.target.value); updateUI(); updatePhysicsParams(); });
+    $('radius').addEventListener('input', (e) => { appState.R = parseFloat(e.target.value); updateUI(); });
+    $('mass').addEventListener('input', (e) => { appState.m = parseFloat(e.target.value); updateUI(); });
+
+    // per-body numeric inputs: keep UI in sync when changed
+    ['m_sphere','R_sphere','m_cyl','R_cyl','m_ring','R_ring'].forEach(id => {
+      const el = $(id);
+      if(el) el.addEventListener('change', () => {
+        // si la simulación no está corriendo, actualizar cuerpos inmediatamente
+        if(!running){
+          bodies.forEach(b => applyPerBodyParamsFromUI(b));
+          updateUI();
+        }
+      });
+    });
+
+    $('start').addEventListener('click', startSim);
+    $('pause').addEventListener('click', () => { 
+      if(running){
+        paused = !paused;
+        $('status').innerText = paused ? 'Pausado' : 'Corriendo';
+        updatePauseButton();
+      }
+    });
+    $('reset').addEventListener('click', resetSim);
+    $('viewReset').addEventListener('click', () => { camera(0, -300, 600, 0, 0, 0, 0, 1, 0); });
+    $('exportSnapshot').addEventListener('click', exportSnapshot);
+    $('runTest').addEventListener('click', () => { runTest(5); });
+
+    $('showForces').addEventListener('change', () => { if(!running) redraw(); });
+    $('showSphere').addEventListener('change', () => { updateTableVisibility(); });
+    $('showCyl').addEventListener('change', () => { updateTableVisibility(); });
+    $('showRing').addEventListener('change', () => { updateTableVisibility(); });
+
+    // inicializar
+    resetSim();
+  });
+
+  </script>
+</body>
+</html>
+
