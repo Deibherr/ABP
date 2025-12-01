@@ -40,8 +40,6 @@ Un menor valor de $k$ significa que una menor proporción de la Energía Potenci
 
 ## 📈 Características de la Simulación
 
-La aplicación incluye herramientas avanzadas para la experimentación y el análisis:
-
 - **Implementación Física Manual**: La física de la simulación fue programada desde cero. En cada paso de tiempo, se calcula la aceleración de cada objeto según las ecuaciones físicas, y luego se actualizan su velocidad y posición. Todo esto se hace sin usar librerías externas de física.
 
 - **Controles Interactivos**: Permite al usuario modificar en tiempo real el ángulo del plano ($\theta$), la altura ($h$), el radio ($R$) y la masa ($m$).
