@@ -76,4 +76,4 @@ Los resultados de la simulación confirman de manera visual y numérica las pred
 
 **Fecha:** Noviembre 2025
 
-**Referencia al Informe Completo:** `ABP_simulador.pdf` (Adjunto en el repositorio)
+**Referencia al Informe Completo:** `Informe/Informe_de_laboratorio v2.pdf` (Adjunto en el repositorio)
