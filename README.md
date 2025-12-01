@@ -64,6 +64,12 @@ Los resultados de la simulación confirman de manera visual y numérica las pred
 
 3. **Independencia de $m$ y $R$**: La aceleración y el orden de llegada son completamente independientes de la masa total y del radio de los cuerpos, siempre y cuando rueden sin deslizar. Solo dependen de la geometría ($k$).
 
+## 🎥 Evidencia del Proyecto
+
+Puedes ver la demostración completa del proyecto en el siguiente video:
+
+[🔗 Ver Video Demostrativo](https://youtube.com/ejemplo) <!-- Reemplaza con tu enlace de YouTube, Drive, etc. -->
+
 ## 📁 Estructura del Repositorio
 
 ```
