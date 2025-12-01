@@ -2,7 +2,7 @@
 
 ## 📝 Resumen del Proyecto
 
-Este proyecto es la implementación de un **Aprendizaje Basado en Problemas (ABP)** de Física Mecánica. Consiste en una simulación web interactiva y visualmente atractiva que modela la competencia de rodadura de tres cuerpos rígidos diferentes (Esfera, Cilindro y Aro/Cilindro hueco) en un plano inclinado, bajo la condición de rodadura sin deslizamiento.
+Este proyecto es la implementación de un **Aprendizaje Basado en Problemas (ABP)** de Física Mecánica. Consiste en una simulación web interactiva y visualmente atractiva que modela la competencia de rodadura de tres cuerpos rígidos diferentes (Esfera, Cilindro y Aro) en un plano inclinado, bajo la condición de rodadura sin deslizamiento.
 
 El objetivo es determinar y demostrar, mediante el modelado físico y la visualización 3D, cuál objeto llega primero y por qué, basándose en el concepto de **Momento de Inercia** ($I$) y la distribución de masa.
 
